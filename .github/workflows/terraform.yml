@@ -1,0 +1,63 @@
+# .github/workflows/terraform.yml
+name: 'Terraform CI/CD'
+
+on:
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    env:
+      # This maps the Git branch to the corresponding Terraform workspace and var-file
+      TF_VAR_FILE: ""
+      TF_WORKSPACE: ""
+      AWS_REGION: "us-east-1" # Set your desired AWS region
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Set Workspace and VarFile based on branch
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "TF_WORKSPACE=prod" >> $GITHUB_ENV
+            echo "TF_VAR_FILE=prod.tfvars" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "TF_WORKSPACE=staging" >> $GITHUB_ENV
+            echo "TF_VAR_FILE=staging.tfvars" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            echo "TF_WORKSPACE=dev" >> $GITHUB_ENV
+            echo "TF_VAR_FILE=dev.tfvars" >> $GITHUB_ENV
+          fi
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Workspace
+        run: terraform workspace select ${{ env.TF_WORKSPACE }} || terraform workspace new ${{ env.TF_WORKSPACE }}
+
+      - name: Terraform Plan (for PRs)
+        if: github.event_name == 'pull_request'
+        run: terraform plan -var-file=${{ env.TF_VAR_FILE }} -no-color
+
+      - name: Terraform Apply (for pushes to branches)
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/dev') && github.event_name == 'push'
+        run: terraform apply -auto-approve -var-file=${{ env.TF_VAR_FILE }}
