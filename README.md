@@ -34,21 +34,8 @@ For most production systems, a directory-based isolation model is superior. It p
 
 **The Structure:**
 
-.
-├── modules/
-│   └── webapp/         # Reusable module for the application stack
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
-└── environments/
-├── dev/
-│   ├── main.tf     # Calls the 'webapp' module with dev values
-│   ├── backend.tf  # Dev-specific backend config
-│   └── dev.tfvars
-└── prod/
-├── main.tf     # Calls the 'webapp' module with prod values
-├── backend.tf  # Prod-specific backend config
-└── prod.tfvars
+
+![filestructure](filestructure.png)
 
 
 
